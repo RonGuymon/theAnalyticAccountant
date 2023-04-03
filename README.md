@@ -1,2 +1,2 @@
 # theAnalyticAccountant
-Files and materials to complement the videos on YouTube
+This repository contains files and materials to complement the videos on YouTube.
