@@ -1,0 +1,163 @@
+---
+title: 'Lab 1.1 v2'
+subtitle: "Introduction to Business Analytics 1e"
+author: "Ron Guymon"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
+
+# Scenarios 1 and 2
+
+```{r results='asis'}
+library(tidyverse)
+library(magrittr)
+library(DT)
+
+# Nice income statement function
+niceIs <- function(df){
+  myTable <- datatable(df
+                       , rownames = F
+                       , class = 'compact'
+                       , options = list(pageLength = 100, dom = 't')
+  ) %>%
+    formatCurrency(columns = 2:ncol(df), digits = 0) %>%
+    formatStyle(columns = 2:ncol(df)
+                , valueColumns = 1
+                , `border-bottom` = styleEqual('income',"3px double")
+                , `border-top` = styleEqual('income',"1px solid")
+    )
+  return(myTable)
+}
+
+
+# Monthly profit function
+monthlyProfit <- function(lawnsPerMonth = 200, chiefHours = 1){
+  pricePerLawn <- 50
+  truckPaymentPerMonth <- -300
+  mowers <- 3
+  mowerPaymentPerMonth <- -100
+  equipmentCost <- -2000
+  equipmentLifeInMonths <- 20
+  equipmentMaintPerMonth <- -100
+  insurancePerMonth <- -300
+  fuelGallonsPerLawn <- 1
+  fuelCostPerGallon <- -3
+  suppliesPerLawn <- -1.5
+  advertPerMonth <- ifelse(lawnsPerMonth ==200,-50,-300)
+  chiefHourlyRate <- -15
+  staffHourlyRate <- -10
+  
+  laborExpensePerLawn <- (chiefHourlyRate *chiefHours) + (staffHourlyRate*1)
+  tis <- data.frame(revenue = pricePerLawn*lawnsPerMonth
+                    , truckPayment = truckPaymentPerMonth
+                    , mowerPayment = mowers*mowerPaymentPerMonth
+                    , equipmentDep = equipmentCost/equipmentLifeInMonths
+                    , maint = equipmentMaintPerMonth
+                    , insurance = insurancePerMonth
+                    , fuel = fuelGallonsPerLawn*fuelCostPerGallon*lawnsPerMonth
+                    , supplies = suppliesPerLawn*lawnsPerMonth
+                    , advertising = advertPerMonth
+                    , labor = laborExpensePerLawn*lawnsPerMonth
+  ) %>%
+    mutate(
+      income = rowSums(., na.rm = T)
+    ) %>%
+    pivot_longer(cols = revenue:income, names_to = 'lineItem', values_to = 'amount') %>%
+    mutate(
+      amountPerLawn = amount/lawnsPerMonth
+    )
+  
+  # IS per lawn
+  tispl <- tis %>% select(lineItem, amountPerLawn)
+  names(tispl)[2] <- paste0('Income Per Lawn ($', laborExpensePerLawn, ')')
+  
+  # IS total
+  tis %<>% select(lineItem, amount)
+  names(tis)[2] <- paste0('Income ($', laborExpensePerLawn, ')')
+  
+  returnList <- list(isPerLawn = tispl
+                     , isPerMonth = tis
+                     , laborExpensePerLawn = laborExpensePerLawn)
+  return(returnList)
+}
+
+# Profit calculations
+for(ch in seq(0,1,.1)){
+  tdf <- monthlyProfit(lawnsPerMonth = 200, chiefHours = ch)
+  
+  # Combine with each iteration
+  if(ch == 0){
+    allIs <- tdf$isPerMonth
+    allIsPl <- tdf$isPerLawn
+  }else{
+    allIs %<>% left_join(tdf$isPerMonth, by = 'lineItem')
+    allIsPl %<>% left_join(tdf$isPerLawn, by = 'lineItem')
+  }
+
+}
+```
+
+## Monthly Profit
+
+```{r}
+niceIs(allIs)
+```
+
+### Chart of Monthly Profit
+
+```{r}
+myPlot <- function(is){
+  is %>%
+    filter(lineItem %in% c('labor', 'income')) %>%
+    pivot_longer(cols = 2:ncol(.), names_to = 'ratePerLawn', values_to = 'amount') %>%
+    mutate(
+      ratePerLawn = gsub('[^0-9\\.]', '', ratePerLawn) %>% as.numeric()
+    ) %>%
+    pivot_wider(names_from = 'lineItem', values_from = 'amount') %>%
+    arrange(ratePerLawn) %>%
+    ggplot(aes(x = ratePerLawn, y = income)) +
+    geom_point() +
+    geom_line() +
+    theme_minimal() +
+    labs(title = 'Monthly Profit by Labor Cost'
+         , x = 'Labor Cost Per Lawn'
+         , y = 'Monthly Profit')
+}
+myPlot(allIs)
+```
+
+# Scenarios 3 & 4  
+
+```{r}
+# Profit calculations
+for(ch in seq(0,1,.1)){
+  tdf <- monthlyProfit(lawnsPerMonth = 350, chiefHours = ch)
+  
+  # Combine with each iteration
+  if(ch == 0){
+    allIs2 <- tdf$isPerMonth
+    allIsPl2 <- tdf$isPerLawn
+  }else{
+    allIs2 %<>% left_join(tdf$isPerMonth, by = 'lineItem')
+    allIsPl2 %<>% left_join(tdf$isPerLawn, by = 'lineItem')
+  }
+
+}
+```
+
+## Monthly Profit 
+
+```{r}
+niceIs(allIs2)
+```
+
+### Chart of Monthly Profit  
+```{r}
+myPlot(allIs2)
+
+```
+

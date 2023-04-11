@@ -1,0 +1,65 @@
+---
+title: "Lab 5.3"
+subtitle: "Time Series Forecasting"
+author: "Ron Guymon"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(readxl) # For reading in Excel files
+library(forecast) # For time series forecasts
+library(DT) # For nice looking tables
+```
+
+# Read and Explore Data
+
+```{r results = 'asis'}
+df <- read_excel('Lab_5_3_Data.xlsx') # Note the starting date and monthly interval
+cat('The start date is', as.character(min(df$Month)), 'and the end date is', as.character(max(df$Month)))
+dft <- ts(df$`Monthly Product Demand`, frequency = 12, start = c(2021,1))
+plot(dft)
+```
+
+# Create Forecasts
+
+```{r}
+fit <- ets(dft) # Read the help on ets to get more details of how it is creating the forecast
+fitPreds <- forecast(fit, h = 24) # Create predictions
+plot(fitPreds)
+```
+
+# Combined data
+
+```{r}
+# Combine the data
+df$predictedDemand <- fit$fitted
+dfPreds <- data.frame(predictedDemand = fitPreds$mean
+                      , Month = floor_date(date_decimal(as.numeric(time(fitPreds$mean))), unit = 'month')
+                      )
+df %<>% bind_rows(dfPreds)
+
+datatable(df)
+```
+
+
+## Combined plot
+
+```{r}
+df %>%
+  pivot_longer(cols = `Monthly Product Demand`:predictedDemand
+               , names_to = 'type'
+               , values_to = 'demand') %>%
+  ggplot(aes(x = Month, y = demand)) +
+  geom_line(aes(color = type)) +
+  labs(title = 'Actual vs. Predicted Demand'
+       , x = 'Date'
+       , y = 'Demand')
+```
+
+
+
